@@ -3,13 +3,25 @@ import lineitem
 import log
 import logging
 import os
-import pricelist
 import xml.etree.ElementTree as ET
+
+
+__version__ = '2023.08.03.01'
+
+
+try:
+    import pricelist
+except FileNotFoundError:
+    error_text = 'Price file not found. Make sure pricelist.csv is in the ' \
+                    'same directory as xmlpricer.exe file.'
+    dialogs.program_closed_unexpectedly(error_text)
+    raise
 
 
 def main():
     bom_file_path = dialogs.load_xml_file()
     if not bom_file_path:
+        dialogs.program_closed_unexpectedly('No BOM selected.')
         return
     
     bom_directory, bom_full_file_name = os.path.split(bom_file_path)
@@ -19,6 +31,7 @@ def main():
         initialfile=bom_full_file_name
     )
     if not new_file_path:
+        dialogs.program_closed_unexpectedly('No new file location selected.')
         return
 
     new_directory, new_full_file_name = os.path.split(new_file_path)
@@ -27,16 +40,18 @@ def main():
     logger_file_path = f'{new_directory}\{new_file_name}.log'
     logger = log.get_logger(logger_file_path)
 
-    logger.info('--- START ---')
+    logger.info(f'--- START ---')
+    logger.info(f'xmlpricer version {__version__}')
     logger.info(f'BOM File Path:  {bom_file_path}')
     logger.info(f'New File Path:  {new_file_path}')
-    logger.info('Parsing Bill of Materials')
+    logger.info(f'Parsing Bill of Materials')
 
     try:
         tree = ET.parse(bom_file_path)
     except ET.ParseError:
-        logger.critical('XML file problem.')
-        return
+        logger.exception('XML file error.')
+        dialogs.program_closed_unexpectedly('XML file error.')
+        raise
     
     root = tree.getroot()
     bill_of_materials = [line_item for line_item in root.findall('.//BOMTemplate')]
@@ -65,8 +80,14 @@ def main():
 
         success_count += 1
 
-    with open(new_file_path, 'w') as file:
-        file.write(ET.tostring(root, encoding='unicode'))
+    try:
+        with open(new_file_path, 'w') as file:
+            file.write(ET.tostring(root, encoding='unicode'))
+    except:
+        error_text = 'An error occured writing the XML file.'
+        logger.exception(error_text)
+        dialogs.program_closed_unexpectedly(error_text)
+        raise
 
     logger.info(f'Successful lines items: {success_count}')
     
@@ -74,6 +95,7 @@ def main():
         logger.warning(f'Skipped line items: {fail_count}')
         for item in skipped:
             item.log_details(logger, logging.WARN)
+        dialogs.warning('There were skipped line items. Check the log file for details.')
 
 
 if __name__ == '__main__':

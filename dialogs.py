@@ -1,5 +1,6 @@
 import tkinter as tk
 from tkinter import filedialog
+from tkinter import messagebox
 from typing import Optional
 
 
@@ -20,3 +21,10 @@ def save_xml_file(initialfile: Optional[str] = None, initialdir: Optional[str] =
         filetypes=[("XML Documents", "*.xml"), ("All Files", "*.*")],
         initialdir=initialdir or "./",
     )
+
+def program_closed_unexpectedly(message: str = 'Program closed unexpectedly.') -> None:
+    messagebox.showerror(title='Error', message=message)
+
+def warning(message: str) -> None:
+    messagebox.showwarning(title='Warning', message=message)
+    
